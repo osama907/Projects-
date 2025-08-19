@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PDF QA & Summary</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #444;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    input[type="file"], input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+    }
+
+    button {
+      padding: 10px 20px;
+      margin-top: 10px;
+      margin-right: 10px;
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    .response {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f7f7f7;
+      border-radius: 6px;
+      font-size: 15px;
+      color: #333;
+      white-space: normal;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>PDF QA and Summarization</h1>
+
+    <label>Select PDF File:</label>
+    <input type="file" id="pdfFile" accept=".pdf" />
+
+    <button onclick="uploadPDF()">Upload PDF</button>
+
+    <hr />
+
+    <label>Ask a Question:</label>
+    <input type="text" id="questionInput" placeholder="Type your question here..." />
+
+    <button onclick="askQuestion()">Ask</button>
+    <button onclick="summarize()">Summarize</button>
+    <button onclick="clearSession()">Clear</button>
+
+    <div id="responseBox" class="response"></div>
+  </div>
+
+  <script>
+    const API_URL = "http://127.0.0.1:8000"; // Change to your backend address if needed
+
+    async function uploadPDF() {
+      const fileInput = document.getElementById("pdfFile");
+      const file = fileInput.files[0];
+
+      if (!file) {
+        alert("Please select a PDF file.");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        const response = await fetch(`${API_URL}/upload-pdf/`, {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await response.json();
+        document.getElementById("responseBox").innerText = data.message || "PDF uploaded and processed.";
+      } catch (error) {
+        document.getElementById("responseBox").innerText = "Error uploading PDF.";
+        console.error(error);
+      }
+    }
+
+    async function askQuestion() {
+      const question = document.getElementById("questionInput").value;
+
+      if (!question) {
+        alert("Please enter a question.");
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_URL}/ask/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ question })
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+          document.getElementById("responseBox").innerText = "Error: " + data.error;
+        } else {
+          const answerText = typeof data.answer === "object" ? data.answer.result : data.answer;
+          document.getElementById("responseBox").innerText = `Q: ${data.query}\n\nA: ${answerText}`;
+          
+        }
+      } catch (error) {
+        document.getElementById("responseBox").innerText = "Error processing question.";
+        console.error(error);
+      }
+    }
+
+    async function summarize() {
+      try {
+        const response = await fetch(`${API_URL}/summarize/`);
+        const html = await response.text();
+
+        document.getElementById("responseBox").innerHTML = html;
+        
+      } catch (error) {
+        document.getElementById("responseBox").innerText = "Error getting summary.";
+        console.error(error);
+      }
+    }
+
+    async function clearSession() {
+      try {
+        const response = await fetch(`${API_URL}/clear-vectorstore/`);
+        const data = await response.json();
+
+        document.getElementById("responseBox").innerText = data.message || "Session cleared.";
+        document.getElementById("questionInput").value = "";
+        document.getElementById("pdfFile").value = "";
+      } catch (error) {
+        document.getElementById("responseBox").innerText = "Error clearing session.";
+        console.error(error);
+      }
+    }
+  </script>
+</body>
+</html>
